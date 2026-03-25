@@ -1,0 +1,18 @@
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Variables de entorno (Seguridad Crítica)
+.env
+.env.*
+
+# Caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de editores
+.vscode/
+.idea/

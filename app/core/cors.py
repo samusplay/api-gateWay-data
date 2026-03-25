@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
+
 
 def configurar_cors(app: FastAPI):
     """
@@ -9,7 +11,7 @@ def configurar_cors(app: FastAPI):
     """
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"], # Puerto de Next.js
+        allow_origins=[settings.FRONTEND_URL], # Puerto de Next.js
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
