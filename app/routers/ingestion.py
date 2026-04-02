@@ -1,7 +1,8 @@
-import httpx
-from fastapi import APIRouter, HTTPException, Request
 
+
+import httpx
 from app.core.config import settings
+from fastapi import APIRouter, HTTPException, Request
 
 #todo lo que entre por ingesta
 router = APIRouter(prefix="/api/v1/ingesta", tags=["Proxy Ingesta"])
@@ -17,12 +18,16 @@ async def proxy_ingesta_dinamico(path: str, request: Request):
 
     #leemos el body
     body = await request.body()
+    #pasarle los campos
+    headers=dict(request.headers)
+    headers.pop("host",None)
 
     try:
         response = await client.request(
             method=request.method,
             url=target_url,
-            content=body
+            content=body,
+            headers=headers
         )
         response.raise_for_status()
         return response.json()
