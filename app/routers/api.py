@@ -1,7 +1,7 @@
 #router
 from fastapi import APIRouter
 
-from app.routers import ingestion, transform
+from app.routers import ingestion, transform, analytics, configuration
 
 api_router=APIRouter()
 #rUtas hijas
@@ -9,3 +9,5 @@ api_router.include_router(ingestion.router)
 
 #registro de rutas 
 api_router.include_router(transform.router)
+api_router.include_router(analytics.router)
+api_router.include_router(configuration.router)

@@ -12,6 +12,10 @@ class Settings:
     #Url de Microservicio
     MS_TRANSFORM_URL:str = os.getenv("MS_TRANSFORM_URL", "http://localhost:8002")
     
+    MS_ANALYTICS_URL: str = os.getenv("MS_ANALYTICS_URL", "http://localhost:8005")
+    
+    MS_CONFIGURATION_URL: str = os.getenv("MS_CONFIGURATION_URL", "http://localhost:8004")
+    
     # Trae URL del Frontend (CORS)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
