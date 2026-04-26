@@ -23,14 +23,20 @@ async def proxy_transform_dinamico(path: str, request: Request):
             method=request.method,
             url=target_url,
             content=body,
-            headers=headers
+            headers=headers,
+            timeout=10.0
         )
         response.raise_for_status()
         return response.json()
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail={"success": False, "error": "El servicio de transformación no responde o tardó demasiado (Timeout)."}
+        )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=503,
-            detail="Error: El ms-transform (Puerto 8002) está apagado o no responde."
+            detail={"success": False, "error": "El ms-transform (Puerto 8002) está apagado o inaccesible."}
         )
     except httpx.HTTPStatusError as e:
         # Si el ms-transform devuelve un 400 o 422, lo pasamos tal cual al frontend

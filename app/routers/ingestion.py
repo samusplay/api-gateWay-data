@@ -27,14 +27,20 @@ async def proxy_ingesta_dinamico(path: str, request: Request):
             method=request.method,
             url=target_url,
             content=body,
-            headers=headers
+            headers=headers,
+            timeout=10.0
         )
         response.raise_for_status()
         return response.json()
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail={"success": False, "error": "El servicio de ingesta no responde o tardó demasiado (Timeout)."}
+        )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=503, 
-            detail="Error: El ms-ingestion (Puerto 8001) está apagado o no responde."
+            detail={"success": False, "error": "El ms-ingestion (Puerto 8001) está apagado o inaccesible."}
         )
     except httpx.HTTPStatusError as e:
         #pasamos al error
