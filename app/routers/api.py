@@ -1,17 +1,21 @@
-# router principal
 from fastapi import APIRouter
-
-from app.routers import ingestion, transform, configuration
+from app.routers import ingestion, transform, configuration, analytics
 
 api_router = APIRouter()
 
-# rutas existentes
 api_router.include_router(ingestion.router)
 api_router.include_router(transform.router)
 
-# 🔥 NUEVA RUTA CONFIGURATION
+# ✅ configuration
 api_router.include_router(
     configuration.router,
-    prefix="/api/v1/profiles",
+    prefix="/api/v1/configuration",
     tags=["Configuration"]
+)
+
+# ✅ analytics
+api_router.include_router(
+    analytics.router,
+    prefix="/api/v1/analytics",
+    tags=["Analytics"]
 )
