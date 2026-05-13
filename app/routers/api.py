@@ -3,6 +3,7 @@ from fastapi import APIRouter
 
 from app.routers import (
     analytics,
+    comparison,
     configuration,
     ingestion,
     ml,
@@ -20,3 +21,6 @@ api_router.include_router(analytics.router)
 api_router.include_router(configuration.router)
 api_router.include_router(ml.router)
 api_router.include_router(recommendations.router)
+
+# Registro del nuevo Aggregator
+api_router.include_router(comparison.router)
