@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from app.routers import (
     analytics,
     configuration,
+    export, 
     ingestion,
     ml,
     recommendations,
@@ -20,3 +21,4 @@ api_router.include_router(analytics.router)
 api_router.include_router(configuration.router)
 api_router.include_router(ml.router)
 api_router.include_router(recommendations.router)
+api_router.include_router(export.router)
