@@ -1,23 +1,34 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
+from app.core.config import settings
+import httpx
 
 router = APIRouter()
 
-# ✅ TEST correcto
-@router.get("/test")
-async def test_analytics(request: Request):
-    response = await request.app.state.http_client.get(
-        "http://ms-analytics:8000/api/v1/analysis/test"
-    )
-    return response.json()
-
-
-# ✅ Ejemplo POST (si luego lo tienes)
-@router.post("/run")
-async def run_analysis(request: Request):
-    body = await request.json()
-
-    response = await request.app.state.http_client.post(
-        "http://ms-analytics:8000/api/v1/analysis/run",  # ajusta si existe
-        json=body
-    )
-    return response.json()
+@router.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_analytics_dinamico(path: str, request: Request):
+    client = request.app.state.http_client
+    
+    # Apuntamos a la URL del microservicio de analítica
+    # ms-analytics usa internamente el prefijo /api/v1/analysis
+    target_url = f"{settings.MS_ANALYTICS_URL}/api/v1/analysis/{path}"
+    
+    body = await request.body()
+    headers = dict(request.headers)
+    headers.pop("host", None)
+    
+    try:
+        response = await client.request(
+            method=request.method,
+            url=target_url,
+            content=body,
+            headers=headers
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail="Error: El ms-analytics está apagado o no responde."
+        )
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.json())

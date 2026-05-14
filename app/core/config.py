@@ -14,6 +14,9 @@ class Settings:
 
     # URL Microservicio Machine Learning
     MS_ML_URL: str = os.getenv("MS_ML_URL", "http://ms-ml:8000")
+
+    # URL Microservicio Analítica
+    MS_ANALYTICS_URL: str = os.getenv("MS_ANALYTICS_URL", "http://ms-analytics:8000")
     
     # Trae URL del Frontend (CORS)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
