@@ -2,7 +2,6 @@ import asyncio
 import io
 from datetime import datetime
 
-import httpx
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -14,108 +13,111 @@ router = APIRouter(prefix="/api/v1/export", tags=["Exportación"])
 
 @router.get("/{dataset_id}")
 async def export_report(dataset_id: str, request: Request):
-    """
-    Orquesta llamadas concurrentes a ms-analytics, ms-ml y ms-recommendations,
-    fusiona los datos con Pandas y retorna un CSV descargable.
-    """
     client = request.app.state.http_client
 
     # =====================================================
-    # PASO 1: Llamadas concurrentes a los 3 microservicios
+    # PASO 1: Obtener ranking desde ms-analytics
     # =====================================================
-    async def fetch_analytics():
-        try:
-            response = await client.get(
-                f"{settings.MS_ANALYTICS_URL}/api/v1/analytics/ranking/{dataset_id}",
-                timeout=10.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception:
-            raise HTTPException(
-                status_code=503,
-                detail={"detail": "Error en agregación", "service": "ms-analytics"}
-            )
+    try:
+        analytics_response = await client.get(
+            f"{settings.MS_ANALYTICS_URL}/api/v1/analytics/ranking/{dataset_id}",
+            timeout=10.0
+        )
+        analytics_response.raise_for_status()
+        analytics_data = analytics_response.json()
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail={"detail": "Error en agregación", "service": "ms-analytics"}
+        )
 
-    async def fetch_ml():
+    zones = analytics_data.get("zones", [])
+    score_calculated_at = analytics_data.get("executed_at", datetime.now().isoformat())
+
+    if not zones:
+        raise HTTPException(
+            status_code=404,
+            detail={"detail": "No hay datos de scoring para exportar", "service": "ms-analytics"}
+        )
+
+    # =====================================================
+    # PASO 2: Obtener predicciones de ml en paralelo
+    # por cada zone_code del ranking
+    # =====================================================
+    async def fetch_prediction(zone_code: str):
         try:
             response = await client.get(
-                f"{settings.MS_ML_URL}/api/v1/ml/predictions/{dataset_id}",
+                f"{settings.MS_ML_URL}/api/v1/ml/predictions/{zone_code}",
                 timeout=10.0
             )
+            if response.status_code == 404:
+                # Si no hay predicción para esa zona retorna vacío
+                return {
+                    "zone_code": zone_code,
+                    "potential_value": None,
+                    "confidence_score": None,
+                    "business_label": None,
+                    "prediction_generated_at": None
+                }
             response.raise_for_status()
-            return response.json()
+            data = response.json().get("data", {})
+            prediction = data.get("prediction", {})
+            return {
+                "zone_code": zone_code,
+                "potential_value": prediction.get("potential_value"),
+                "confidence_score": prediction.get("confidence_score"),
+                "business_label": prediction.get("business_label"),
+                "prediction_generated_at": data.get("prediction_generated_at")
+            }
         except Exception:
             raise HTTPException(
                 status_code=503,
                 detail={"detail": "Error en agregación", "service": "ms-ml"}
             )
 
-    async def fetch_recommendations():
-        try:
-            response = await client.get(
-                f"{settings.MS_RECOMMENDATIONS_URL}/api/v1/recommendations/{dataset_id}",
-                timeout=10.0
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception:
-            raise HTTPException(
-                status_code=503,
-                detail={"detail": "Error en agregación", "service": "ms-recommendations"}
-            )
-
-    # Ejecutar las 3 llamadas en paralelo
-    analytics_data, ml_data, recommendations_data = await asyncio.gather(
-        fetch_analytics(),
-        fetch_ml(),
-        fetch_recommendations()
-    )
+    # Llamadas en paralelo para todas las zonas
+    zone_codes = [z["zone_code"] for z in zones]
+    predictions = await asyncio.gather(*[fetch_prediction(zc) for zc in zone_codes])
 
     # =====================================================
-    # PASO 2: Construcción de DataFrames con Pandas
+    # PASO 3: Construcción de DataFrames y merge
     # =====================================================
 
-    # DataFrame de analytics — zones con score y rank
-    df_analytics = pd.DataFrame(analytics_data.get("zones", []))
+    # DataFrame analytics
+    df_analytics = pd.DataFrame(zones)
+    df_analytics["score_calculated_at"] = score_calculated_at  # CA 4
 
-    # DataFrame de ml — predicciones por zona
-    df_ml = pd.DataFrame(ml_data.get("predictions", []))
+    # DataFrame ml
+    df_ml = pd.DataFrame(predictions)
 
-    # DataFrame de recommendations — recomendaciones por zona
-    df_recommendations = pd.DataFrame(recommendations_data.get("recommendations", []))
+    # Merge por zone_code — una sola fila por zona
+    df_merged = df_analytics.merge(df_ml, on="zone_code", how="left")
 
-    # =====================================================
-    # PASO 3: Merge por zone_code
-    # =====================================================
-    if df_analytics.empty:
-        raise HTTPException(
-            status_code=404,
-            detail={"detail": "No hay datos de scoring para exportar", "service": "ms-analytics"}
-        )
+    # Eliminar duplicados por si acaso
+    df_merged = df_merged.drop_duplicates(subset=["zone_code"])
 
-    # Merge analytics + ml
-    df_merged = df_analytics.merge(
-        df_ml,
-        on="zone_code",
-        how="left"  # left join — si ml no tiene datos, no pierde las zonas
-    )
-
-    # Merge resultado + recommendations
-    df_merged = df_merged.merge(
-        df_recommendations,
-        on="zone_code",
-        how="left"
-    )
+    # Ordenar columnas para que el CSV sea legible
+    columnas = [
+        "rank",
+        "zone_code",
+        "score",
+        "score_calculated_at",         # CA 4
+        "potential_value",
+        "confidence_score",
+        "business_label",
+        "prediction_generated_at",     # CA 4
+    ]
+    # Solo incluir columnas que existan en el df
+    columnas_existentes = [c for c in columnas if c in df_merged.columns]
+    df_merged = df_merged[columnas_existentes]
 
     # =====================================================
-    # PASO 4: Generar CSV en memoria
+    # PASO 4: Generar CSV en memoria y retornar stream
     # =====================================================
     buffer = io.StringIO()
     df_merged.to_csv(buffer, index=False, encoding="utf-8")
     buffer.seek(0)
 
-    # Nombre del archivo con fecha actual
     today = datetime.now().strftime("%Y-%m-%d")
     filename = f"Reporte_Analitico_{today}.csv"
 
