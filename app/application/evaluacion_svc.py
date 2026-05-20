@@ -18,6 +18,7 @@ class EvaluacionIntegralService:
         self,
         dataset_id: str,
         zone_code: str,
+        trace_id: str = ""
     ) -> Tuple[EvaluacionIntegral, bool, bool]:
         
         # Variables para controlar el estado de las fuentes
@@ -29,7 +30,7 @@ class EvaluacionIntegralService:
             nonlocal analytics_ok
             try:
                 result = await asyncio.wait_for(
-                    self.analytics_port.get_zone_score(dataset_id, zone_code),
+                    self.analytics_port.get_zone_score(dataset_id, zone_code, trace_id),
                     timeout=3.0
                 )
                 analytics_ok = True
@@ -42,7 +43,7 @@ class EvaluacionIntegralService:
             nonlocal ml_ok
             try:
                 result = await asyncio.wait_for(
-                    self.ml_port.get_zone_prediction(zone_code),
+                    self.ml_port.get_zone_prediction(zone_code, trace_id),
                     timeout=3.0
                 )
                 ml_ok = True

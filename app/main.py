@@ -25,6 +25,10 @@ app=FastAPI(
 #aplicamos cors
 configurar_cors(app)
 
+# Registramos middleware transversal de Trazabilidad
+from app.core.middleware import TraceIdMiddleware
+app.add_middleware(TraceIdMiddleware)
+
 #registramos rutas globales
 app.include_router(api_router)
 

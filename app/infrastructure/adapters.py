@@ -10,19 +10,21 @@ class HttpAnalyticsAdapter(AnalyticsPort):
         self.base_url = base_url
         self.client = client 
 
-    async def get_analytics(self, dataset_id: str, zone_codes: List[str]) -> List[Dict[str, Any]]:
+    async def get_analytics(self, dataset_id: str, zone_codes: List[str], trace_id: str = "") -> List[Dict[str, Any]]:
         # GET a tu endpoint real con el UUID
         url = f"{self.base_url}/api/v1/analytics/zones/metrics/{dataset_id}"
-        response = await self.client.get(url)
+        headers = {"X-Trace-Id": trace_id} if trace_id else {}
+        response = await self.client.get(url, headers=headers)
         response.raise_for_status()
         
         all_zones = response.json().get("data", [])
         # Filtramos para quedarnos solo con las zonas solicitadas (0, 1, 4, etc.)
         return [z for z in all_zones if str(z.get("zone_code")) in zone_codes]
 
-    async def get_zone_score(self, dataset_id: str, zone_code: str) -> Optional[Dict[str, Any]]:
+    async def get_zone_score(self, dataset_id: str, zone_code: str, trace_id: str = "") -> Optional[Dict[str, Any]]:
         url = f"{self.base_url}/api/v1/analytics/ranking/{dataset_id}"
-        response = await self.client.get(url)
+        headers = {"X-Trace-Id": trace_id} if trace_id else {}
+        response = await self.client.get(url, headers=headers)
         response.raise_for_status()
         
         data = response.json()
@@ -45,20 +47,22 @@ class HttpMLAdapter(MLPort):
         self.base_url = base_url
         self.client = client
 
-    async def get_predictions(self, dataset_id: str, zone_codes: List[str], strategy: str) -> List[Dict[str, Any]]:
+    async def get_predictions(self, dataset_id: str, zone_codes: List[str], strategy: str, trace_id: str = "") -> List[Dict[str, Any]]:
         # POST a tu endpoint de ML con el UUID
         url = f"{self.base_url}/api/v1/ml/execute/{dataset_id}"
         payload = {"strategy": strategy}
-        response = await self.client.post(url, json=payload)
+        headers = {"X-Trace-Id": trace_id} if trace_id else {}
+        response = await self.client.post(url, json=payload, headers=headers)
         response.raise_for_status()
         
         all_predictions = response.json().get("data", [])
         # Filtramos las predicciones por zone_code
         return [p for p in all_predictions if str(p.get("zone_code")) in zone_codes]
 
-    async def get_zone_prediction(self, zone_code: str) -> Optional[Dict[str, Any]]:
+    async def get_zone_prediction(self, zone_code: str, trace_id: str = "") -> Optional[Dict[str, Any]]:
         url = f"{self.base_url}/api/v1/ml/predictions/{zone_code}"
-        response = await self.client.get(url)
+        headers = {"X-Trace-Id": trace_id} if trace_id else {}
+        response = await self.client.get(url, headers=headers)
         response.raise_for_status()
         
         data = response.json().get("data")

@@ -21,6 +21,7 @@ async def proxy_ingesta_dinamico(path: str, request: Request):
     #pasarle los campos
     headers=dict(request.headers)
     headers.pop("host",None)
+    headers["X-Trace-Id"] = getattr(request.state, "trace_id", "")
 
     try:
         response = await client.request(

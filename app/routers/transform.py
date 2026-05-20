@@ -17,6 +17,7 @@ async def proxy_transform_dinamico(path: str, request: Request):
     body = await request.body()
     headers = dict(request.headers)
     headers.pop("host", None)
+    headers["X-Trace-Id"] = getattr(request.state, "trace_id", "")
     
     try:
         response = await client.request(

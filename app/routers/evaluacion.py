@@ -21,13 +21,16 @@ def get_evaluacion_service(request: Request) -> EvaluacionIntegralService:
 @router.get("/{zone_code}", response_model=EvaluacionIntegralResponse)
 async def evaluar_zona_endpoint(
     zone_code: str,
+    request: Request,
     dataset_id: str = Query(..., description="UUID del dataset para consultar ranking"),
     service: EvaluacionIntegralService = Depends(get_evaluacion_service)
 ):
     try:
+        trace_id = getattr(request.state, "trace_id", "")
         evaluacion, analytics_ok, ml_ok = await service.evaluar_zona(
             dataset_id=dataset_id,
-            zone_code=zone_code
+            zone_code=zone_code,
+            trace_id=trace_id
         )
         
         # Mapeo de entidades de dominio a esquemas Pydantic
