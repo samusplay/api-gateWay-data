@@ -9,6 +9,7 @@ from app.routers import (
     ml,
     recommendations,
     transform,
+    evaluacion
 )
 
 api_router=APIRouter()
@@ -24,3 +25,4 @@ api_router.include_router(recommendations.router)
 
 # Registro del nuevo Aggregator
 api_router.include_router(comparison.router)
+api_router.include_router(evaluacion.router)

@@ -37,3 +37,27 @@ class ComparisonVerdict:
 class ComparisonAggregate:
     zones: List[EnrichedZone]
     verdict: ComparisonVerdict
+
+@dataclass
+class ScoreDeterministico:
+    zone_code: str
+    zone_name: str
+    score_value: float
+    rank_position: int
+    dataset_id: str
+    execution_id: int
+
+@dataclass
+class PotencialPredictivo:
+    potential_value: float
+    confidence_score: float
+    business_label: str
+    color_code: str
+    model_reference: str
+
+@dataclass
+class EvaluacionIntegral:
+    zone_code: str
+    score: Optional[ScoreDeterministico]
+    prediccion: Optional[PotencialPredictivo]
+    evaluacion_completa: bool
