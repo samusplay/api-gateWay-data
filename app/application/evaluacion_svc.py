@@ -67,7 +67,8 @@ class EvaluacionIntegralService:
                 score_value=float(score_data.get("score_value", 0.0)),
                 rank_position=int(score_data.get("rank_position", 0)),
                 dataset_id=str(score_data.get("dataset_id", dataset_id)),
-                execution_id=int(score_data.get("execution_id", 0))
+                execution_id=int(score_data.get("execution_id", 0)),
+                score_calculated_at=str(score_data.get("created_at", ""))
             )
 
         pred_entity = None
@@ -78,7 +79,8 @@ class EvaluacionIntegralService:
                 confidence_score=float(pred.get("confidence_score", 0.0)),
                 business_label=str(pred.get("business_label", "")),
                 color_code=str(pred.get("color_code", "")),
-                model_reference=str(prediction_data.get("model_reference", ""))
+                model_reference=str(prediction_data.get("model_reference", "")),
+                prediction_generated_at=str(prediction_data.get("created_at", ""))
             )
 
         # Determinar si la evaluación está completa (ambas fuentes respondieron con datos)

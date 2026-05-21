@@ -46,6 +46,7 @@ class ScoreDeterministico:
     rank_position: int
     dataset_id: str
     execution_id: int
+    score_calculated_at: Optional[str] = None
 
 @dataclass
 class PotencialPredictivo:
@@ -54,6 +55,7 @@ class PotencialPredictivo:
     business_label: str
     color_code: str
     model_reference: str
+    prediction_generated_at: Optional[str] = None
 
 @dataclass
 class EvaluacionIntegral:

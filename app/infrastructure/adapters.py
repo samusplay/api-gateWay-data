@@ -38,7 +38,8 @@ class HttpAnalyticsAdapter(AnalyticsPort):
                     "score_value": z.get("score"),
                     "rank_position": z.get("rank"),
                     "dataset_id": data.get("dataset_id"),
-                    "execution_id": data.get("execution_id")
+                    "execution_id": data.get("execution_id"),
+                    "created_at": data.get("created_at") or z.get("calculated_at")
                 }
         return None
 
