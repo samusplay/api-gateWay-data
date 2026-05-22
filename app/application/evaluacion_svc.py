@@ -18,6 +18,7 @@ class EvaluacionIntegralService:
         self,
         dataset_id: str,
         zone_code: str,
+        strategy: str = "gradient_boosting",
         trace_id: str = ""
     ) -> Tuple[EvaluacionIntegral, bool, bool]:
         
@@ -42,12 +43,12 @@ class EvaluacionIntegralService:
         async def fetch_prediction():
             nonlocal ml_ok
             try:
-                result = await asyncio.wait_for(
-                    self.ml_port.get_zone_prediction(zone_code, trace_id),
+                predictions = await asyncio.wait_for(
+                    self.ml_port.get_predictions(dataset_id, [zone_code], strategy, trace_id),
                     timeout=3.0
                 )
                 ml_ok = True
-                return result
+                return predictions[0] if predictions else None
             except Exception as e:
                 print(f"⚠️ Error o timeout al obtener predicción para zona {zone_code}: {e}")
                 return None

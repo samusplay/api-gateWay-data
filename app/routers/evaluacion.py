@@ -28,6 +28,7 @@ async def evaluar_zona_endpoint(
     zone_code: str,
     request: Request,
     dataset_id: str = Query(..., description="UUID del dataset para consultar ranking"),
+    strategy: str = Query("gradient_boosting", description="Estrategia ML a usar"),
     service: EvaluacionIntegralService = Depends(get_evaluacion_service),
     audit_adapter: HttpAuditAdapter = Depends(get_audit_adapter)
 ):
@@ -36,6 +37,7 @@ async def evaluar_zona_endpoint(
         evaluacion, analytics_ok, ml_ok = await service.evaluar_zona(
             dataset_id=dataset_id,
             zone_code=zone_code,
+            strategy=strategy,
             trace_id=trace_id
         )
         

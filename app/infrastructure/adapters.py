@@ -56,9 +56,25 @@ class HttpMLAdapter(MLPort):
         response = await self.client.post(url, json=payload, headers=headers)
         response.raise_for_status()
         
-        all_predictions = response.json().get("data", [])
-        # Filtramos las predicciones por zone_code
-        return [p for p in all_predictions if str(p.get("zone_code")) in zone_codes]
+        body = response.json()
+        all_predictions = body.get("data", [])
+        algo = body.get("algorithm_used", strategy)
+        
+        res = []
+        for p in all_predictions:
+            if str(p.get("zone_code")) in zone_codes:
+                res.append({
+                    "zone_code": str(p.get("zone_code")),
+                    "prediction": {
+                        "potential_value": p.get("potential_score", 0.0),
+                        "confidence_score": p.get("confidence", 0.0),
+                        "business_label": p.get("interpretation", {}).get("label", ""),
+                        "color_code": p.get("color_code", ""),
+                    },
+                    "model_reference": algo,
+                    "created_at": None
+                })
+        return res
 
     async def get_zone_prediction(self, zone_code: str, trace_id: str = "") -> Optional[Dict[str, Any]]:
         url = f"{self.base_url}/api/v1/ml/predictions/{zone_code}"
