@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from app.domain.ports import AnalyticsPort, MLPort
+from app.domain.ports import AnalyticsPort, MLPort, RecommendationsPort, AuditPort
 
 
 class HttpAnalyticsAdapter(AnalyticsPort):
@@ -39,7 +39,7 @@ class HttpAnalyticsAdapter(AnalyticsPort):
                     "rank_position": z.get("rank"),
                     "dataset_id": data.get("dataset_id"),
                     "execution_id": data.get("execution_id"),
-                    "created_at": data.get("created_at") or z.get("calculated_at")
+                    "created_at": data.get("executed_at") or z.get("calculated_at")
                 }
         return None
 
@@ -70,3 +70,34 @@ class HttpMLAdapter(MLPort):
         if data:
             return data
         return None
+
+
+class HttpRecommendationsAdapter(RecommendationsPort):
+    def __init__(self, base_url: str, client: httpx.AsyncClient):
+        self.base_url = base_url
+        self.client = client
+
+    async def get_recommendations(self, dataset_id: str, zone_codes: List[str], trace_id: str = "") -> List[Dict[str, Any]]:
+        url = f"{self.base_url}/api/v1/recommendations/zones/{dataset_id}"
+        headers = {"X-Trace-Id": trace_id} if trace_id else {}
+        response = await self.client.get(url, headers=headers)
+        response.raise_for_status()
+        all_recs = response.json().get("data", [])
+        return [r for r in all_recs if str(r.get("zone_code")) in zone_codes]
+
+
+class HttpAuditAdapter(AuditPort):
+    def __init__(self, base_url: str, client: httpx.AsyncClient):
+        self.base_url = base_url
+        self.client = client
+
+    async def emit_export_event(self, trace_id: str, filename: str, record_count: int) -> None:
+        url = f"{self.base_url}/api/v1/events"
+        payload = {
+            "event_type": "EVALUACION_INTEGRAL_CONSULTADA",
+            "service_name": "api-gateway",
+            "reference_id": filename,
+            "trace_id": trace_id,
+            "event_summary": f"Evaluación integral consultada para zona {filename}. Fuentes cruzadas: {record_count}."
+        }
+        await self.client.post(url, json=payload, timeout=3.0)

@@ -19,6 +19,8 @@ class Settings:
     MS_ML_URL: str = os.getenv("MS_ML_URL", "http://localhost:8006")
 
     MS_RECOMMENDATIONS_URL: str = os.getenv("MS_RECOMMENDATIONS_URL", "http://localhost:8007")
+
+    MS_AUDITORIA_URL: str = os.getenv("MS_AUDITORIA_URL", "http://localhost:8003")
     
     # Trae URL del Frontend (CORS)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")

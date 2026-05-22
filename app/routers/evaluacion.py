@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -5,7 +6,7 @@ import httpx
 
 from app.application.evaluacion_svc import EvaluacionIntegralService
 from app.core.config import settings
-from app.infrastructure.adapters import HttpAnalyticsAdapter, HttpMLAdapter
+from app.infrastructure.adapters import HttpAnalyticsAdapter, HttpMLAdapter, HttpAuditAdapter
 from app.schemas.evaluacion import EvaluacionIntegralResponse
 
 router = APIRouter(prefix="/api/v1/evaluacion-integral", tags=["Evaluación Integral Territorial"])
@@ -18,12 +19,17 @@ def get_evaluacion_service(request: Request) -> EvaluacionIntegralService:
     
     return EvaluacionIntegralService(analytics_port=analytics_adapter, ml_port=ml_adapter)
 
+def get_audit_adapter(request: Request) -> HttpAuditAdapter:
+    client = request.app.state.http_client
+    return HttpAuditAdapter(base_url=settings.MS_AUDITORIA_URL, client=client)
+
 @router.get("/{zone_code}", response_model=EvaluacionIntegralResponse)
 async def evaluar_zona_endpoint(
     zone_code: str,
     request: Request,
     dataset_id: str = Query(..., description="UUID del dataset para consultar ranking"),
-    service: EvaluacionIntegralService = Depends(get_evaluacion_service)
+    service: EvaluacionIntegralService = Depends(get_evaluacion_service),
+    audit_adapter: HttpAuditAdapter = Depends(get_audit_adapter)
 ):
     trace_id = getattr(request.state, "trace_id", "unknown-trace-id")
     try:
@@ -68,6 +74,12 @@ async def evaluar_zona_endpoint(
                 "message": f"Los siguientes microservicios no respondieron a tiempo o fallaron: {', '.join(fuentes_caidas)}. Se muestran los datos disponibles."
             }
 
+        # Fire-and-forget: notificar a auditoría sin bloquear la respuesta
+        fuentes_cruzadas = sum([1 for ok in [analytics_ok, ml_ok] if ok])
+        asyncio.create_task(_safe_audit(
+            audit_adapter, trace_id, zone_code, fuentes_cruzadas
+        ))
+
         return {
             "success": True,
             "data": {
@@ -95,3 +107,15 @@ async def evaluar_zona_endpoint(
             },
             "trace_id": trace_id
         }
+
+
+async def _safe_audit(audit_adapter: HttpAuditAdapter, trace_id: str, zone_code: str, record_count: int):
+    """Envuelve la llamada a auditoría en try/except para que nunca lance excepciones no capturadas."""
+    try:
+        await audit_adapter.emit_export_event(
+            trace_id=trace_id,
+            filename=zone_code,
+            record_count=record_count
+        )
+    except Exception as e:
+        print(f"⚠️ Auditoría fire-and-forget falló (no bloquea): {e}")
