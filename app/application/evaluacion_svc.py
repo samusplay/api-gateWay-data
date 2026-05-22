@@ -32,7 +32,8 @@ class EvaluacionIntegralService:
             try:
                 result = await asyncio.wait_for(
                     self.analytics_port.get_zone_score(dataset_id, zone_code, trace_id),
-                    timeout=3.0
+                    #Posible cuello de botella
+                    timeout=10.0
                 )
                 analytics_ok = True
                 return result
