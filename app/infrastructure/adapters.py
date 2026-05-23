@@ -23,6 +23,12 @@ class HttpAnalyticsAdapter(AnalyticsPort):
         # Filtramos para quedarnos solo con las zonas solicitadas (0, 1, 4, etc.)
         return [z for z in all_zones if str(z.get("zone_code")) in zone_codes]
 
+    async def get_ranking(self, dataset_id: str) -> Dict[str, Any]:
+        url = f"{self.base_url}/api/v1/analytics/ranking/{dataset_id}"
+        response = await self.client.get(url)
+        response.raise_for_status()
+        return response.json()
+
 class HttpMLAdapter(MLPort):
 
     def __init__(self, base_url: str, client: httpx.AsyncClient):
@@ -64,8 +70,8 @@ class HttpRecommendationsAdapter(RecommendationsPort):
             data = response.json().get("data", {})
             return {
                 "zone_code": zone_code,
-                "recommendation_level": data.get("recommendation_level"),
-                "top_factors": data.get("top_factors"),
+                "recommendation_level": data.get("business_label"),
+                "top_factors": ", ".join([r.get("factor", "") for r in data.get("top_recommendations", [])]) if data.get("top_recommendations") else None,
             }
 
         return list(await asyncio.gather(*[fetch_one(zc) for zc in zone_codes]))

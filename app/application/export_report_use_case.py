@@ -28,13 +28,20 @@ class ExportReportUseCase:
     async def execute(self, dataset_id: str, strategy: str) -> Tuple[bytes, str]:
         trace_id = str(uuid.uuid4())
 
+        # Si viene "default" o valor vacío, usamos "linear" como valor por defecto seguro
+        if not strategy or strategy.lower() == "default":
+            strategy = "linear"
+
         # ── PASO 1: Ranking completo desde ms-analytics ──────────────────────
-        # get_analytics retorna todas las zonas, no necesitamos filtrar
         try:
-            zones = await self.analytics_port.get_analytics(
-                dataset_id=dataset_id,
-                zone_codes=[],
-            )
+            ranking_response = await self.analytics_port.get_ranking(dataset_id=dataset_id)
+            zones = ranking_response.get("zones", [])
+            executed_at = ranking_response.get("executed_at")
+            
+            # CA 4: Asignamos el score_calculated_at a cada zona para que aparezca en el CSV
+            for z in zones:
+                z["score_calculated_at"] = executed_at
+
         except Exception as e:
             print(f"❌ ERROR Analytics: {type(e).__name__} — {str(e)}")  # ← agregar
             raise HTTPException(
@@ -62,10 +69,9 @@ class ExportReportUseCase:
 
         zone_codes = [str(z["zone_code"]) for z in zones]
 
-        # ── PASO 2: ML y Recomendaciones en paralelo ─────────────────────────
-        # CA 2: llamadas concurrentes a los servicios necesarios
+        # ── PASO 2: ML, Recomendaciones y Métricas Base en paralelo ─────────
         try:
-            ml_results, rec_results = await asyncio.gather(
+            ml_results, rec_results, metrics_results = await asyncio.gather(
                 self.ml_port.get_predictions(
                     dataset_id=dataset_id,
                     zone_codes=zone_codes,
@@ -75,47 +81,65 @@ class ExportReportUseCase:
                     dataset_id=dataset_id,
                     zone_codes=zone_codes,
                 ),
+                self.analytics_port.get_analytics(
+                    dataset_id=dataset_id,
+                    zone_codes=zone_codes,
+                )
             )
         except HTTPException:
             raise
-        except Exception:
+        except Exception as e:
+            print(f"❌ ERROR ML o Recomendaciones: {type(e).__name__} — {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
                     "success": False,
                     "error": {
                         "code": "AGGREGATION_ERROR",
-                        "message": "No se pudo completar la exportación debido a un error en el servicio de ML o Recomendaciones",
+                        "message": f"No se pudo completar la exportación debido a un error en el servicio de ML o Recomendaciones: {str(e)}",
                     },
                 },
             )
 
         # ── PASO 3: Merge con Pandas ──────────────────────────────────────────
-        # CA 2: usar Pandas para merge de dataframes por zone_code
-        # CA 4: score_calculated_at y prediction_generated_at obligatorios
         df_analytics = pd.DataFrame(zones)
         df_ml = pd.DataFrame(ml_results)
         df_rec = pd.DataFrame(rec_results)
+        df_metrics = pd.DataFrame(metrics_results)
+
+        # Castear todos los zone_code a string para que el merge de pandas funcione
+        for df_temp in [df_analytics, df_ml, df_rec, df_metrics]:
+            if not df_temp.empty and "zone_code" in df_temp.columns:
+                df_temp["zone_code"] = df_temp["zone_code"].astype(str)
 
         df = (
             df_analytics
+            .merge(df_metrics, on="zone_code", how="left")
             .merge(df_ml, on="zone_code", how="left")
             .merge(df_rec, on="zone_code", how="left")
             .drop_duplicates(subset=["zone_code"])
         )
 
-        # Orden de columnas legible — CA 4 garantiza las dos columnas de temporalidad
+        # Ordenar por zone_code numéricamente si es posible
+        df["_sort_key"] = pd.to_numeric(df["zone_code"], errors="coerce")
+        df = df.sort_values(by=["_sort_key", "zone_code"]).drop(columns=["_sort_key"])
+
+        # Orden de columnas legible
         ordered_cols = [
-            "rank",
             "zone_code",
+            "zone_name",
+            "poblacion",
+            "ingresos",
+            "competencia",
             "score",
-            "score_calculated_at",       # CA 4
+            "rank",
             "potential_value",
-            "confidence_score",
-            "business_label",
-            "prediction_generated_at",   # CA 4
             "recommendation_level",
             "top_factors",
+            "score_calculated_at",
+            "confidence_score",
+            "business_label",
+            "prediction_generated_at",
         ]
         df = df[[c for c in ordered_cols if c in df.columns]]
 

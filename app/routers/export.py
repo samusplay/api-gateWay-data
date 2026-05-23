@@ -2,7 +2,6 @@
 
 import io
 import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
@@ -31,7 +30,7 @@ def get_use_case(request: Request) -> ExportReportUseCase:
 @router.get("/{dataset_id}")
 async def export_report(
     dataset_id: str,
-    strategy: str = "default",
+    strategy: str = "linear",
     use_case: ExportReportUseCase = Depends(get_use_case),
 ):
     try:
@@ -41,14 +40,16 @@ async def export_report(
         )
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
                 "success": False,
                 "error": {
                     "code": "AGGREGATION_ERROR",
-                    "message": "Error inesperado durante la exportación",
+                    "message": f"Error inesperado durante la exportación: {str(e)}",
                 },
                 "trace_id": str(uuid.uuid4()),
             },

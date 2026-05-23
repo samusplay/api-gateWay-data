@@ -7,6 +7,10 @@ class AnalyticsPort(ABC):
     async def get_analytics(self, dataset_id: str, zone_codes: List[str]) -> List[Dict[str, Any]]:
         pass
 
+    @abstractmethod
+    async def get_ranking(self, dataset_id: str) -> Dict[str, Any]:
+        pass
+
 
 class MLPort(ABC):
     @abstractmethod

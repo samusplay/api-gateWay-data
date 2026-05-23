@@ -10,7 +10,7 @@ from app.routers.api import api_router
 # ==========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.http_client = httpx.AsyncClient()
+    app.state.http_client = httpx.AsyncClient(timeout=300.0)
     print("🌐 Pool de conexiones HTTPX iniciado correctamente.")
     yield
     await app.state.http_client.aclose()
