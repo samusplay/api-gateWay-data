@@ -22,6 +22,23 @@ Verifica que el API Gateway está en línea.
 
 ---
 
+## 2. Exportación de Resultados (CSV)
+
+Este endpoint consolida la información de todos los microservicios y devuelve un archivo CSV listo para descargar.
+
+- **Método**: `GET`
+- **URL**: `http://localhost:8000/api/v1/export/{{dataset_id}}?strategy=linear`
+- **Nota para Postman**: Como la respuesta es un archivo, haz clic en la flecha junto al botón "Send" y selecciona **"Send and Download"**.
+- **Respuesta Esperada (200 OK)**: 
+Se descargará un archivo nombrado dinámicamente, por ejemplo `Reporte_Analitico_2026-05-23.csv`, cuyo contenido texto será similar a:
+```csv
+zone_code,zone_name,poblacion,score,potential_value,recommendation_level
+0,ZONA_CENTRO,1500,0.95,0.88,Alta Oportunidad
+```
+```
+
+---
+
 ## 2. Evaluación Integral (Orquestación BFF)
 
 Este endpoint combina datos determinísticos (Analytics) y predicciones de IA (ML) para una zona específica. También registra automáticamente la consulta en el microservicio de Auditoría.
