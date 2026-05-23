@@ -15,20 +15,27 @@ async def proxy_analytics_dinamico(path: str, request: Request):
     body = await request.body()
     headers = dict(request.headers)
     headers.pop("host", None)
+    headers["X-Trace-Id"] = getattr(request.state, "trace_id", "")
     
     try:
         response = await client.request(
             method=request.method,
             url=target_url,
             content=body,
-            headers=headers
+            headers=headers,
+            timeout=10.0
         )
         response.raise_for_status()
         return response.json()
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail={"success": False, "error": "El servicio de analítica no responde o tardó demasiado (Timeout)."}
+        )
     except httpx.ConnectError:
         raise HTTPException(
             status_code=503,
-            detail="Error: El ms-analytics (Puerto 8005) está apagado o no responde."
+            detail={"success": False, "error": "El ms-analytics (Puerto 8005) está apagado o inaccesible."}
         )
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=e.response.status_code, detail=e.response.json())

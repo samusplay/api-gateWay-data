@@ -11,6 +11,8 @@ from app.routers import (
     ml,
     recommendations,
     transform,
+    evaluacion,
+    auditoria
 )
 
 api_router = APIRouter()
@@ -26,3 +28,7 @@ api_router.include_router(analytics.router)
 api_router.include_router(configuration.router)
 api_router.include_router(ml.router)
 api_router.include_router(recommendations.router)
+
+# Registro del nuevo Aggregator
+api_router.include_router(evaluacion.router)
+api_router.include_router(auditoria.router)

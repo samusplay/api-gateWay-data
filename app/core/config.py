@@ -20,8 +20,7 @@ class Settings:
 
     MS_RECOMMENDATIONS_URL: str = os.getenv("MS_RECOMMENDATIONS_URL", "http://localhost:8007")
 
-    # app/core/config.py — agregar esta línea con las demás URLs
-    MS_AUDIT_URL: str = os.getenv("MS_AUDIT_URL", "http://localhost:8003")
+    MS_AUDITORIA_URL: str = os.getenv("MS_AUDITORIA_URL", "http://localhost:8003")
     
     # Trae URL del Frontend (CORS)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
