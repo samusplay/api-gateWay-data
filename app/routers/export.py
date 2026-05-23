@@ -23,7 +23,7 @@ def get_use_case(request: Request) -> ExportReportUseCase:
         analytics_port=HttpAnalyticsAdapter(settings.MS_ANALYTICS_URL, client),
         ml_port=HttpMLAdapter(settings.MS_ML_URL, client),
         recommendations_port=HttpRecommendationsAdapter(settings.MS_RECOMMENDATIONS_URL, client),
-        audit_port=HttpAuditAdapter(settings.MS_AUDIT_URL, client),
+        audit_port=HttpAuditAdapter(settings.MS_AUDITORIA_URL, client),
     )
 
 

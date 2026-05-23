@@ -76,14 +76,17 @@ class ExportReportUseCase:
                     dataset_id=dataset_id,
                     zone_codes=zone_codes,
                     strategy=strategy,
+                    trace_id=trace_id,
                 ),
                 self.recommendations_port.get_recommendations(
                     dataset_id=dataset_id,
                     zone_codes=zone_codes,
+                    trace_id=trace_id,
                 ),
                 self.analytics_port.get_analytics(
                     dataset_id=dataset_id,
                     zone_codes=zone_codes,
+                    trace_id=trace_id,
                 )
             )
         except HTTPException:
@@ -103,7 +106,17 @@ class ExportReportUseCase:
 
         # ── PASO 3: Merge con Pandas ──────────────────────────────────────────
         df_analytics = pd.DataFrame(zones)
-        df_ml = pd.DataFrame(ml_results)
+        # Flatten predictions for CSV
+        flat_ml = []
+        for r in ml_results:
+            flat_ml.append({
+                "zone_code": r.get("zone_code"),
+                "potential_value": r.get("prediction", {}).get("potential_value"),
+                "confidence_score": r.get("prediction", {}).get("confidence_score"),
+                "business_label": r.get("prediction", {}).get("business_label"),
+                "model_reference": r.get("model_reference")
+            })
+        df_ml = pd.DataFrame(flat_ml) if flat_ml else pd.DataFrame()
         df_rec = pd.DataFrame(rec_results)
         df_metrics = pd.DataFrame(metrics_results)
 

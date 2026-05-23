@@ -103,12 +103,25 @@ class HttpRecommendationsAdapter(RecommendationsPort):
         self.client = client
 
     async def get_recommendations(self, dataset_id: str, zone_codes: List[str], trace_id: str = "") -> List[Dict[str, Any]]:
-        url = f"{self.base_url}/api/v1/recommendations/zones/{dataset_id}"
-        headers = {"X-Trace-Id": trace_id} if trace_id else {}
-        response = await self.client.get(url, headers=headers)
-        response.raise_for_status()
-        all_recs = response.json().get("data", [])
-        return [r for r in all_recs if str(r.get("zone_code")) in zone_codes]
+        async def fetch_one(zone_code: str) -> Dict[str, Any]:
+            url = f"{self.base_url}/api/v1/recommendations/{dataset_id}/{zone_code}"
+            headers = {"X-Trace-Id": trace_id} if trace_id else {}
+            response = await self.client.get(url, headers=headers, timeout=10.0)
+            if response.status_code == 404:
+                return {
+                    "zone_code": zone_code,
+                    "recommendation_level": None,
+                    "top_factors": None,
+                }
+            response.raise_for_status()
+            data = response.json().get("data", {})
+            return {
+                "zone_code": zone_code,
+                "recommendation_level": data.get("business_label"),
+                "top_factors": ", ".join([r.get("factor", "") for r in data.get("top_recommendations", [])]) if data.get("top_recommendations") else None,
+            }
+
+        return list(await asyncio.gather(*[fetch_one(zc) for zc in zone_codes]))
 class HttpAuditAdapter(AuditPort):
     def __init__(self, base_url: str, client: httpx.AsyncClient):
         self.base_url = base_url
